@@ -1,0 +1,16 @@
+name: Build and test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/test.sh
+      - run: ./scripts/build.sh
+      - run: ditto -c -k --keepParent build/LinkBudsBar.app build/LinkBudsBar.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LinkBudsBar
+          path: build/LinkBudsBar.zip
