@@ -120,7 +120,7 @@ struct NothingSession {
         guard !queue.isEmpty else {
             ready = batteries != nil || sound != nil
             failed = !ready
-            if failed { status = "Nothing device did not return supported settings" }
+            if failed { status = "Could not read settings from your Nothing or CMF device" }
             return []
         }
         let read = queue.removeFirst(), id = nextID()
@@ -135,7 +135,7 @@ struct NothingSession {
     mutating func set(_ mode: SoundMode, now: TimeInterval) -> [NothingFrame] {
         guard ready, sound != nil, !busy, probeSound else { return [] }
         let frame = NothingFrame(command: 0xf00f, operation: nextID(), payload: NothingSound.command(mode, cancellationValue: cancellationValue))
-        status = "Applying \(mode == .ambient ? "Transparency" : mode.title)…"
+        status = "Applying \(mode == .ambient ? "transparency" : mode.title.lowercased())…"
         verification = (mode, now + 0.2)
         return [frame]
     }
@@ -147,7 +147,7 @@ struct NothingSession {
             switch pending.read {
             case .battery: batteries = nil
             case .sound: sound = nil; status = "Connected · sound controls unavailable"
-            case .verify: sound = nil; status = "Could not verify sound change — refresh to retry"
+            case .verify: sound = nil; status = "Could not confirm the sound change – choose Refresh"
             }
             self.pending = nil
         }
@@ -167,7 +167,7 @@ struct NothingSession {
                 if value.mode == .cancelling { cancellationValue = value.value }
                 if verification == nil {
                     if case .verify(let wanted)? = pending?.read {
-                        if matching { status = value.mode == wanted ? connectedStatus : "Setting did not apply — try again" }
+                        if matching { status = value.mode == wanted ? connectedStatus : "Setting did not apply – try again" }
                     } else { status = connectedStatus }
                 }
             }

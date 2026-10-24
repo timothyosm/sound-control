@@ -70,7 +70,7 @@ import Foundation
         check(session.set(.cancelling, now: 4)[0].payload == [1,3,0], "remember NC strength after transparency")
         let verifyFailure = session.tick(now: 4.3)[0]
         _ = session.receive(NothingFrame(command: 0x401e, operation: verifyFailure.operation, payload: [1,7,0]), now: 4.5)
-        check(session.status == "Setting did not apply — try again", "mismatched read-back reported")
+        check(session.status == "Setting did not apply – try again", "mismatched read-back reported")
         _ = session.set(.off, now: 5)
         _ = session.tick(now: 5.3)
         _ = session.tick(now: 10)

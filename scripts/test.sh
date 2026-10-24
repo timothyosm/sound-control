@@ -8,3 +8,5 @@ swiftc Sources/SonyProtocol.swift Sources/Compatibility.swift Tests/Compatibilit
 build/CompatibilityTests
 swiftc Sources/SonyProtocol.swift Sources/NothingProtocol.swift Tests/NothingTests.swift -o build/NothingTests
 build/NothingTests
+swiftc Sources/SettingsStore.swift Tests/SettingsTests.swift -lsqlite3 -o build/SettingsTests
+build/SettingsTests

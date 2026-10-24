@@ -1,82 +1,105 @@
 # Sound Control
 
-A tiny native macOS menu bar app for compatible Sony, Nothing, and CMF headphones and earbuds. Originally built for LinkBuds S, now with capability-based Sony MDR V1/V2 support and experimental Nothing/CMF support.
+Sound Control lets you change headphone settings from the macOS menu bar. It supports compatible Sony headphones and has experimental support for Nothing and CMF devices.
 
-- Noise Cancelling, Ambient Sound, and Off where supported
-- Device-reported ambient levels and voice focus where supported
-- Single, left/right, and charging-case battery readings
-- Headphone picker, remembered selection, and automatic reconnect
-- Optional Open at Login; no accounts, telemetry, or runtime dependencies
+You can:
+
+- switch between noise cancelling, ambient sound or transparency, and off
+- adjust ambient sound levels and focus on voices on supported Sony devices
+- check headphone and charging case batteries
+- choose your headphones and reconnect automatically
+- open the app when you log in.
 
 ## Compatibility
 
-| Device/protocol family | Status |
+Only LinkBuds S has been tested on a physical device. Tests for other devices use simulated messages. Model examples below are candidates for testing, not guarantees of compatibility.
+
+| Device or protocol | Support |
 | --- | --- |
-| LinkBuds S, firmware 4.3.1 | Hardware tested, including capability discovery, sound writes/read-back, batteries, and restoring original settings |
-| Nothing / CMF headphones and earbuds | Experimental ANC/Transparency/Off and battery support; simulated tests only, no hardware verification |
-| Legacy MDR V1 headphones (e.g. WH-1000XM3/XM4) | Implemented and tested with synthetic protocol fixtures; not hardware verified |
-| MDR V2 headphones/earbuds with supported layouts (e.g. WH-1000XM5/XM6, WF-1000XM5, WH-CH720N, WF-C700N) | Capability-driven implementation; other models need hardware verification |
-| Headsets with battery support but no supported sound-control layout | Battery information only; sound controls disabled |
-| Sony TVs, cameras, consoles, speakers, USB-only or LE-only devices | Not supported by this headphone RFCOMM implementation |
+| LinkBuds S with firmware 4.3.1 | Tested on a device: feature discovery, sound changes, battery readings and restoration of original settings |
+| Nothing and CMF headphones and earbuds | Experimental noise cancelling, transparency and battery controls; no device testing |
+| Sony MDR V1, such as WH-1000XM3 and WH-1000XM4 | Tested with simulated messages; no device testing |
+| Sony MDR V2, such as WH-1000XM5, WH-1000XM6, WF-1000XM5, WH-CH720N and WF-C700N | Supported message formats are implemented; these models need device testing |
+| Devices that report batteries but lack supported sound controls | Battery readings only |
+| TVs, cameras, consoles, speakers and devices that use only USB or Bluetooth Low Energy | Not supported |
 
-Model examples are compatibility candidates, not guarantees. Discovery uses Sony's advertised service UUID, not a model-name allowlist, so renamed headsets can work too. The app queries supported functions and sound capabilities before enabling writes. Unrecognized protocols, capabilities, or sound settings never enable speculative controls.
+The app checks the services and features that each device reports before enabling controls. Renaming your headphones does not prevent discovery.
 
-Implemented sound layouts: V1 NC-only on/off (`01`), combined NC/ambient (`02`), ambient-only (`03`); V2 NC-only (`01`), combined seamless (`13`, `14`, `16`, `17`, `18`, `19`), ambient-only on/off (`21`) and seamless (`22`). V2 `19` preserves the device's existing noise-adaptation fields. Other layouts remain unsupported; wind-reduction and automatic/adaptive modes are not separate controls in the menu.
+Nothing and CMF controls appear after the app receives valid settings. The menu shows that these devices have not been tested. Ear (open) and Ear (stick) provide battery readings only. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
 
-## Nothing / CMF
+## Install and open the app
 
-Devices advertising Nothing's control service appear in **Headphones** alongside
-Sony devices. Nothing exposes **Noise Cancelling**, **Transparency**, and **Off**
-after a valid sound-status reply, plus available battery readings. The last
-reported noise-cancelling strength is preserved. Ear (open) and Ear (stick) are
-battery-only; Sony ambient-level and voice-focus controls are hidden.
+You need macOS 13 or later and Apple’s Command Line Tools. Run `xcode-select --install` if the tools are not installed.
 
-Nothing support is explicitly marked **hardware unverified** in the menu. It is
-not a promise that every Nothing/CMF model works. See the
-[protocol notes and compatibility limits](docs/nothing-protocol.md).
-
-## Build and run
-
-Requires macOS 13 or newer and Apple's Command Line Tools (`xcode-select --install`).
+From the repository folder, run:
 
 ```sh
 ./scripts/test.sh
 ./scripts/build.sh
-open "build/Sound Control.app"
+ditto --noextattr "build/Sound Control.app" "/Applications/Sound Control.app"
+open "/Applications/Sound Control.app"
 ```
 
-Copy `build/Sound Control.app` to Applications for a permanent installation. Pair and connect your **Sony, Nothing, or CMF headphones** in macOS Bluetooth Settings first. Allow Bluetooth access if macOS asks. The app runs only in the menu bar; it has no Dock icon. Open at Login is opt-in from its menu.
+Pair and connect your headphones in macOS Bluetooth settings. Allow Bluetooth access if macOS asks. The app appears in the menu bar and has no Dock icon.
 
-The build uses the local Mac's architecture and ad-hoc signing. It is not Developer ID signed or notarized; building locally is recommended for other Macs.
+Choose **Open at login** in the app’s menu to start it when you log in. macOS manages this registration.
 
-## How Sony support works
+The build runs on the local Mac’s processor architecture and uses an ad hoc signature. It is not signed with an Apple Developer ID or notarised. Build the app on each Mac where you plan to use it.
 
-The app discovers paired devices advertising Sony's V1 or V2 RFCOMM service. It prefers V2 when both services exist, validates the handshake, reads the supported-function list and sound capability ranges, then requests only advertised battery formats. Choose a headset under **Headphones**, or leave automatic selection enabled. A selected disconnected device waits for you to connect it in Bluetooth Settings.
+## Saved settings
 
-Commands are serialized and verified with read-back. Replies and acknowledgements can arrive in either order; duplicate inbound frames are acknowledged without applying them twice. An acknowledged optional read that receives no reply is skipped until reconnect, allowing the remaining features to work. Transport failures close only this app's control channel, not the audio connection.
+The app stores preferences in a local SQLite database:
 
-Choosing an ambient level activates Ambient Sound. Voice focus is available only when advertised. Ambient ranges and steps come from the headset. Inactive ambient values may be normalized by the device in NC/Off mode, so verification compares the selected mode and only its active settings. Unknown battery values appear as a dash; case readings can be stale while the case is disconnected.
+```text
+~/Library/Application Support/Sound Control/settings.sqlite3
+```
 
-If control times out, close Sony Sound Connect on your phone and other Sony control apps, then choose Reconnect. Devices must be paired and connected through macOS first; if service discovery is missing, reconnect them in Bluetooth Settings.
+The database currently stores your headphone selection. It also records completed data migrations. The app moves your existing selection from macOS preferences on its first successful launch after this update.
 
-## Verification
+Migration runs in a transaction. The app removes the old preference only after the transaction succeeds. If the database cannot open, the app shows an error and stops. If a selection cannot be saved, the app keeps the previous selection and shows an error.
 
-`./scripts/test.sh` checks packet fragmentation, concatenated frames, all escaped bytes, corrupt checksums/lengths, malformed-stream recovery, bounded buffers, and sound-setting parsing.
+Live battery readings and sound settings stay in memory and are read again from your headphones. macOS manages Bluetooth pairing, permissions and login registration. The app does not copy these system settings into its database.
 
-An optional **Sony-only** hardware check **changes your sound settings briefly**, tests advertised modes, ambient level and voice focus, then restores the settings read at the start. Quit any running copy before invoking it:
+There are no accounts or analytics. The app uses the SQLite library included with macOS. Diagnostic files are written only when you pass the optional `--log` argument.
+
+## Sound controls
+
+The app checks each Sony device’s supported features before requesting settings. Choose a device under **Headphones**, or let the app choose connected headphones automatically.
+
+Commands run one at a time. After a sound change, the app reads the setting back to check that it applied. Acknowledgement of a command alone does not confirm success.
+
+Choosing an ambient level turns on ambient sound. **Focus on voices** is available only when the device reports support for it. The available levels come from the device.
+
+Unknown battery readings appear as **Unknown**. The charging case reading may be out of date while the case is disconnected.
+
+If a connection times out, close other headphone control apps and choose **Reconnect**. If the device does not appear, reconnect it through macOS Bluetooth settings.
+
+## Tests
+
+Run `./scripts/test.sh` to check message handling, simulated device support and SQLite storage. Storage tests cover migration, reopening the database, failed writes, locked databases and damaged files.
+
+The optional device test works with Sony headphones only. **It briefly changes your sound settings**, checks the available controls and restores the original settings. Quit the running app before starting it:
 
 ```sh
 open "build/Sound Control.app" --args --hardware-test --log /tmp/sound-control-hardware.log
 ```
 
-The log reports each read-back result and restoration. If Bluetooth disconnects during the check, restoration cannot be guaranteed; restore the desired mode from the menu after reconnecting. Normal launches do not write logs.
+The log records each check and the restoration result. If Bluetooth disconnects during testing, restoration may fail. Reconnect and restore your preferred mode from the menu.
 
-Hardware verification on LinkBuds S firmware 4.3.1 passed: Noise Cancelling, Off, Ambient Sound at level 10, voice focus on/off, and restoration of the original mode/level/voice settings. These are device read-back checks, not an acoustic measurement. The test suite passes 297 framing/state assertions and 132 Sony compatibility assertions, plus 367 Nothing protocol/session assertions. Only LinkBuds S has been tested on hardware; the other layouts use synthetic fixtures based on published protocol definitions.
+The LinkBuds S test passed for noise cancelling, off, ambient sound at level 10, voice focus and restoration of the original settings. These checks confirm the settings reported by the device. They do not measure sound quality or noise reduction.
 
-## Scope
+## Limits
 
-No EQ, firmware updates, automatic location-based sound, or non-headphone product control. Login startup and sleep/wake behavior need longer-term testing. Other Sony models and all Nothing/CMF devices require community hardware testing; passing fixture tests does not establish device compatibility.
+The app does not provide an equaliser, firmware updates, location-based controls or controls for other product types. Login startup and sleep and wake behaviour need longer-term testing.
 
-## Protocol references and licensing
+Sony sound formats include V1 noise cancelling (`01`), combined noise cancelling and ambient sound (`02`), and ambient sound (`03`). V2 formats include noise cancelling (`01`), combined controls (`13`, `14`, `16`, `17`, `18`, `19`), and ambient sound (`21`, `22`). Format `19` preserves the device’s noise adaptation fields. Other formats remain unsupported. Wind reduction and adaptive modes are not separate menu controls.
 
-Independent Swift implementation informed by [SonyBridge](https://github.com/AmitRajput-Dev/SonyBridge) (reference commit `8c81a2775a76097f4938fbc835411bd59088014c`) and the packet definitions in [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient) (reference commit `8f4808cb635f5a176df0b7b5aea959818be5129e`). Both projects' MIT notices are retained in `THIRD_PARTY_LICENSES`. This app is unofficial and is not affiliated with Sony.
+## Writing style
+
+App wording and documentation follow the [Australian Government Style Manual](https://www.stylemanual.gov.au). The [project style sheet](docs/style.md) records the conventions for future changes.
+
+## Protocol references and licences
+
+This independent Swift implementation draws on [SonyBridge](https://github.com/AmitRajput-Dev/SonyBridge) at commit `8c81a2775a76097f4938fbc835411bd59088014c` and [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient) at commit `8f4808cb635f5a176df0b7b5aea959818be5129e`.
+
+Their MIT notices remain in `THIRD_PARTY_LICENSES`. Sound Control is unofficial and is not affiliated with Sony, Nothing or CMF.

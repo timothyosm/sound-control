@@ -5,7 +5,7 @@ STAGING=$(mktemp -d "${TMPDIR:-/tmp}/sound-control-build.XXXXXX")
 trap 'rm -rf "$STAGING"' EXIT
 APP="$STAGING/Sound Control.app"
 mkdir -p "$APP/Contents/MacOS" build
-swiftc -swift-version 5 -O -target "$(uname -m)-apple-macosx13.0" -framework AppKit -framework IOBluetooth -framework ServiceManagement Sources/*.swift -o "$APP/Contents/MacOS/SoundControl"
+swiftc -swift-version 5 -O -target "$(uname -m)-apple-macosx13.0" -lsqlite3 -framework AppKit -framework IOBluetooth -framework ServiceManagement Sources/*.swift -o "$APP/Contents/MacOS/SoundControl"
 cp Info.plist "$APP/Contents/Info.plist"
 xattr -cr "$APP"
 codesign --force --sign - "$APP"

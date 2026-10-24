@@ -19,7 +19,7 @@ final class HardwareTest {
             timer?.invalidate(); return
         }
         if Date().timeIntervalSince(started) > 60 {
-            headphones.log("HARDWARE TEST TIMEOUT — restore original settings manually if disconnected")
+            headphones.log("HARDWARE TEST TIMEOUT – restore original settings manually if disconnected")
             if let original { headphones.set(original.mode, level: original.level, voice: original.voice) }
             timer?.invalidate(); return
         }

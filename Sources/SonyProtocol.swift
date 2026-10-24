@@ -42,7 +42,7 @@ struct SonyDecoder {
 
 enum SoundMode: Int, CaseIterable {
     case cancelling, ambient, off
-    var title: String { ["Noise Cancelling", "Ambient Sound", "Off"][rawValue] }
+    var title: String { ["Noise cancelling", "Ambient sound", "Off"][rawValue] }
     func command(level: Int, voice: Bool) -> [UInt8] {
         [0x68, 0x17, 1, self == .off ? 0 : 1, self == .ambient ? 1 : 0, voice ? 1 : 0, UInt8(max(1, min(20, level)))]
     }
