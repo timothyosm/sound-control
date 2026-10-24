@@ -9,6 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./scripts/test.sh
       - run: ./scripts/build.sh
+      - run: ./scripts/test-update-installation.sh
       - run: ditto -c -k --keepParent "build/Sound Control.app" build/SoundControl.zip
       - uses: actions/upload-artifact@v4
         with:

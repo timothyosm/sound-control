@@ -12,3 +12,5 @@ swiftc Sources/SettingsStore.swift Tests/SettingsTests.swift -lsqlite3 -o build/
 build/SettingsTests
 swiftc Sources/SonyProtocol.swift Sources/Compatibility.swift Sources/ExtraControls.swift Sources/NothingExtras.swift Sources/NothingProtocol.swift Tests/ExtraControlTests.swift -o build/ExtraControlTests
 build/ExtraControlTests
+swiftc Sources/UpdateManifest.swift Tests/UpdateTests.swift -o build/UpdateTests
+build/UpdateTests

@@ -1,7 +1,7 @@
 import AppKit
 import ServiceManagement
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var headphones: Headphones!
     var item: NSStatusItem!
     var menu = NSMenu()
@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var hardwareTest: HardwareTest?
     var extraHardwareTest: ExtraHardwareTest?
     var settings: SettingsStore!
+    var updater: AppUpdater!
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { settings = try SettingsStore(); headphones = try Headphones(settings: settings) }
         catch {
@@ -19,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.terminate(nil)
             return
         }
+        updater = AppUpdater(store: settings)
+        updater.changed = { [weak self] in self?.update() }
         let args = CommandLine.arguments
         if let index = args.firstIndex(of: "--log"), args.count > index + 1 { headphones.logURL = URL(fileURLWithPath: args[index + 1]) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -28,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self; item.menu = menu
         headphones.changed = { [weak self] in self?.update() }
         update(); headphones.start()
+        if !args.contains("--hardware-test") && !args.contains("--extra-hardware-test") { updater.start() }
+        if args.contains("--check-updates") { updater.check(manual: true) }
         if args.contains("--extra-hardware-test") { extraHardwareTest = ExtraHardwareTest(headphones, store: settings); extraHardwareTest?.start() }
         else if args.contains("--hardware-test") { hardwareTest = HardwareTest(headphones); hardwareTest?.start() }
     }
@@ -117,6 +122,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let login = add("Open at login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        let updatesMenu = NSMenu(); updatesMenu.autoenablesItems = false
+        let updates = add("Updates", #selector(noop)); updates.submenu = updatesMenu
+        let check = NSMenuItem(title: updater.busy ? "Checking or downloading…" : "Check for updates…", action: #selector(checkUpdates), keyEquivalent: "")
+        check.target = self; check.isEnabled = !updater.busy; updatesMenu.addItem(check)
+        let auto = NSMenuItem(title: "Check automatically", action: #selector(toggleUpdates), keyEquivalent: "")
+        auto.target = self; auto.state = updater.automatic ? .on : .off; updatesMenu.addItem(auto)
         add("Quit Sound Control", #selector(quit)).keyEquivalent = "q"
     }
     @objc func selectDevice(_ sender: NSMenuItem) {
@@ -147,10 +158,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let alert = NSAlert(); alert.messageText = "Could not change the login setting"; alert.informativeText = error.localizedDescription; alert.runModal()
         }
     }
+    @objc func checkUpdates() { updater.check(manual: true) }
+    @objc func toggleUpdates() { updater.toggleAutomatic() }
     @objc func quit() { NSApp.terminate(nil) }
 }
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
-let delegate = AppDelegate()
-app.delegate = delegate
-app.run()
+MainActor.assumeIsolated {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    let delegate = AppDelegate()
+    app.delegate = delegate
+    app.run()
+}

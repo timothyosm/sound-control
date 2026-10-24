@@ -30,7 +30,9 @@ Nothing and CMF controls appear after the app receives valid settings. The menu 
 
 ## Install and open the app
 
-You need macOS 13 or later and Apple’s Command Line Tools. Run `xcode-select --install` if the tools are not installed.
+Download **SoundControl.zip** from the [latest release](https://github.com/timothyosm/sound-control/releases/latest). Quit any running copy, unzip the download, move **Sound Control.app** to Applications and open it. The download supports Apple silicon and Intel Macs with macOS 13 or later.
+
+To build from source, you also need Apple’s Command Line Tools. Run `xcode-select --install` if the tools are not installed.
 
 From the repository folder, run:
 
@@ -45,7 +47,13 @@ Pair and connect your headphones in macOS Bluetooth settings. Allow Bluetooth ac
 
 Choose **Open at login** in the app’s menu to start it when you log in. macOS manages this registration.
 
-The build runs on the local Mac’s processor architecture and uses an ad hoc signature. It is not signed with an Apple Developer ID or notarised. Build the app on each Mac where you plan to use it.
+The app uses an ad hoc signature. It is not signed with an Apple Developer ID or notarised. macOS may ask you to allow the first download in **System Settings > Privacy & Security**.
+
+## Automatic updates
+
+Sound Control checks for new versions daily while it is running. Choose **Updates > Check for updates** to check at any time. Choose **Update and restart** when an update is available. You can turn off scheduled checks with **Check automatically**.
+
+Versions before 0.6.0 need one manual installation to gain the updater. Future downloads are verified against a signed release record before installation. Read the [update and release guide](docs/updates.md) for details.
 
 ## Saved settings
 
@@ -55,7 +63,7 @@ The app stores preferences in a local SQLite database:
 ~/Library/Application Support/Sound Control/settings.sqlite3
 ```
 
-The database stores your headphone selection, completed data migrations and any pending restoration from an optional device test. The app moves your existing selection from macOS preferences on its first successful launch after this update.
+The database stores your headphone selection, update preference, last successful update check, completed data migrations and any pending restoration from an optional device test. The app moves your existing selection from macOS preferences on its first successful launch after this update.
 
 Migration runs in a transaction. The app removes the old preference only after the transaction succeeds. If the database cannot open, the app shows an error and stops. If a selection cannot be saved, the app keeps the previous selection and shows an error.
 
