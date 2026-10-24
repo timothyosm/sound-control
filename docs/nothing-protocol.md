@@ -21,9 +21,9 @@ The app can:
 - retain the last reported noise cancelling strength, or use high if none has been read
 - read the setting back to confirm each change.
 
-Active noise cancelling (ANC) strength, equaliser, gesture, firmware and personalised ANC controls are not available. Sony ambient level and voice focus controls are hidden for Nothing devices.
+Active noise cancelling (ANC) strength, equaliser presets and other supported settings appear under **More settings**. Sony ambient level and voice focus controls are hidden for Nothing devices. See the [extra control notes](extra-controls.md) for the command formats and limits.
 
-Devices named Ear (open) or Ear (stick) use battery readings only. The app does not implement the noise reduction feature available in some Ear (stick) firmware. Renamed devices are identified by their service. ANC stays disabled until the app receives a valid reply.
+Devices named Ear (open) or Ear (stick) skip noise control queries. Other settings still require a valid response. The app does not implement the noise reduction feature available in some Ear (stick) firmware. Renamed devices are identified by their service. ANC stays disabled until the app receives a valid reply.
 
 ## Message format
 

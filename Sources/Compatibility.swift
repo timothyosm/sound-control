@@ -11,6 +11,9 @@ enum SonyGeneration: String, CaseIterable {
         guard p.count >= 2, p[0] == 1, p[1] == 0 else { return false }
         return self == .v1 ? p.count == 4 : (p.count == 8 && p[6] == 0)
     }
+    func supportsSecondTable(_ payload: [UInt8]) -> Bool {
+        self == .v2 && acceptsHandshake(payload) && payload[7] == 0
+    }
     var batteryGet: UInt8 { self == .v1 ? 0x10 : 0x22 }
     var batteryReply: UInt8 { self == .v1 ? 0x11 : 0x23 }
 }

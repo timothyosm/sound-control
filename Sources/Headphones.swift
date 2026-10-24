@@ -9,6 +9,9 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     var deviceName = "Headphones"
     var generation: SonyGeneration = .v2
     var capabilities: SonyCapabilities?
+    private var sonyExtras = SonyExtras()
+    private var supportsSecondTable = false
+    var extraControls: [ExtraControl] { isNothing ? (nothingSession?.extras.controls ?? []) : sonyExtras.controls }
     var control: SoundControl?
     enum Backend {
         case sony(SonyGeneration), nothing
@@ -25,6 +28,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         let mode: SoundMode?
         let batteries: NothingBatteries?
         let status: String
+        let extras: NothingExtras
     }
     private var lastNothingView: NothingView?
     var availableModes: [SoundMode] { isNothing ? (state == nil ? [] : SoundMode.allCases) : (control?.modes ?? []) }
@@ -58,6 +62,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     private var sequence: UInt8 = 0
     private struct Request {
         var payload: [UInt8]
+        var type: UInt8 = 12
         var reply: UInt8?
         var optional = false
         var completion: (([UInt8]?) -> Void)?
@@ -142,6 +147,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
             guard self.generation.acceptsHandshake(response) else {
                 self.fail("This Sony connection format is not supported"); return
             }
+            self.supportsSecondTable = self.generation.supportsSecondTable(response)
             self.enqueue([0x06,0x00], reply: 0x07) { [weak self] response in
                 guard let self, let response else { return }
                 guard let caps = SonyCapabilities(generation: self.generation, payload: response) else {
@@ -163,6 +169,37 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         ready = true
         status = control == nil ? "Connected · sound controls unavailable" : "Reading settings…"
         refresh()
+        if generation == .v2, let capabilities {
+            for query in sonyExtras.discover(functions: capabilities.functions) { readExtra(query) }
+            if supportsSecondTable { enqueue([0x06,0], reply: 0x07, optional: true, type: 14) { [weak self] response in
+                guard let self, let response, let caps = SonyCapabilities(generation: .v2, payload: response) else { return }
+                for query in self.sonyExtras.discover(functions: caps.functions, type: 14) { self.readExtra(query) }
+            } }
+        }
+    }
+    private func readExtra(_ query: SonyQuery) {
+        enqueue(query.payload, reply: query.reply, optional: true, type: query.type) { [weak self] response in
+            self?.sonyExtras.receive(response, for: query)
+            self?.changed?()
+        }
+    }
+    func setExtra(id: String, value: Int) {
+        guard ready, !busy else { return }
+        if isNothing {
+            sendNothing(nothingSession?.setExtra(id: id, value: value, now: ProcessInfo.processInfo.systemUptime) ?? [])
+            syncNothing()
+            return
+        }
+        guard let edit = sonyExtras.edit(id: id, value: value) else { return }
+        status = "Applying setting…"
+        enqueue(edit.payload, reply: nil, type: edit.query.type) { [weak self] ack in
+            guard let self, ack != nil else { return }
+            self.enqueue(edit.query.payload, reply: edit.query.reply, optional: true, type: edit.query.type) { [weak self] response in
+                guard let self else { return }
+                self.sonyExtras.receive(response, for: edit.query)
+                self.status = response.map { edit.matches($0) && self.extraControls.contains(where: { $0.id == id && $0.selected == value }) ? "Setting applied" : "Setting did not apply – try again" } ?? "Could not confirm the setting – choose Refresh"
+            }
+        }
     }
     func rfcommChannelClosed(_ rfcommChannel: IOBluetoothRFCOMMChannel!) { guard rfcommChannel === channel else { return }; fail("Disconnected – reconnecting automatically") }
     func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!, data dataPointer: UnsafeMutableRawPointer!, length dataLength: Int) {
@@ -183,12 +220,12 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
                 sequence = frame.sequence; acknowledged = true
                 if current?.reply == nil { finish([]) }
                 else if let response { finish(response) }
-            } else if frame.type == 12, frame.sequence <= 1 {
+            } else if [UInt8(12),14].contains(frame.type), frame.sequence <= 1 {
                 guard write(SonyFrame(type: 1, sequence: frame.sequence ^ 1, payload: []).encoded) else { return }
                 guard lastInboundSequence != frame.sequence else { continue }
                 lastInboundSequence = frame.sequence
-                parse(frame.payload)
-                if let request = current, frame.payload.first == request.reply,
+                if frame.type == 12 { parse(frame.payload) }
+                if let request = current, frame.type == request.type, frame.payload.first == request.reply,
                    frame.payload.count > 1, frame.payload[1] == request.payload[1] {
                     response = frame.payload
                     if acknowledged { finish(frame.payload) }
@@ -224,6 +261,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         }
         guard ready, !busy else { return }
         if let control { enqueue([0x66,control.type], reply: 0x67, optional: true) }
+        for query in sonyExtras.queries { readExtra(query) }
         for type in capabilities?.batteryTypes ?? [] {
             enqueue([generation.batteryGet,type], reply: generation.batteryReply, optional: true)
         }
@@ -242,23 +280,23 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
             self.enqueue([0x66,control.type], reply: 0x67)
         }
     }
-    private func enqueue(_ payload: [UInt8], reply: UInt8?, optional: Bool = false, completion: (([UInt8]?) -> Void)? = nil) {
-        if optional && disabledReads.contains(payload) { completion?(nil); return }
-        queue.append(Request(payload: payload, reply: reply, optional: optional, completion: completion)); pump()
+    private func enqueue(_ payload: [UInt8], reply: UInt8?, optional: Bool = false, type: UInt8 = 12, completion: (([UInt8]?) -> Void)? = nil) {
+        if optional && disabledReads.contains([type] + payload) { completion?(nil); return }
+        queue.append(Request(payload: payload, type: type, reply: reply, optional: optional, completion: completion)); pump()
     }
     private func pump() {
         guard !pumpingDeferred, current == nil, !queue.isEmpty, channel != nil else { return }
         current = queue.removeFirst(); acknowledged = false; response = nil
         let payload = current!.payload
         log("TX " + payload.map { String(format: "%02x", $0) }.joined(separator: " "))
-        guard write(SonyFrame(type: 12, sequence: sequence, payload: payload).encoded) else { return }
+        guard write(SonyFrame(type: current!.type, sequence: sequence, payload: payload).encoded) else { return }
         timeout?.invalidate()
         timeout = Timer.scheduledTimer(withTimeInterval: 4, repeats: false) { [weak self] _ in
             guard let self else { return }
             if self.current?.optional == true && self.acknowledged {
                 if let payload = self.current?.payload {
-                    self.disabledReads.insert(payload)
-                    if payload[0] == 0x66 { self.control = nil; self.state = nil; self.status = "Connected · sound controls unavailable" }
+                    self.disabledReads.insert([self.current!.type] + payload)
+                    if self.current?.type == 12 && payload[0] == 0x66 { self.control = nil; self.state = nil; self.status = "Connected · sound controls unavailable" }
                 }
                 self.finish(nil)
             } else { self.fail("Headphones did not respond. Close Sony Sound Connect and try again.") }
@@ -298,7 +336,11 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     private func syncNothing() {
         guard let session = nothingSession else { return }
         if session.failed { fail(session.status); return }
-        let snapshot = NothingView(ready: session.ready, busy: session.busy, mode: session.sound?.mode, batteries: session.batteries, status: session.status)
+        if session.ready && !session.busy {
+            let frames = nothingSession?.loadExtras(now: ProcessInfo.processInfo.systemUptime) ?? []
+            if !frames.isEmpty { sendNothing(frames); syncNothing(); return }
+        }
+        let snapshot = NothingView(ready: session.ready, busy: session.busy, mode: session.sound?.mode, batteries: session.batteries, status: session.status, extras: session.extras)
         guard snapshot != lastNothingView else { return }
         lastNothingView = snapshot
         ready = session.ready
@@ -315,7 +357,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         channel?.setDelegate(nil); channel?.close(); channel = nil
         opening = false; ready = false; state = nil; wanted = nil
         left = nil; right = nil; caseBattery = nil; battery = nil
-        capabilities = nil; control = nil; disabledReads = []; lastInboundSequence = nil; response = nil; activeAddress = nil
+        capabilities = nil; control = nil; sonyExtras = SonyExtras(); supportsSecondTable = false; disabledReads = []; lastInboundSequence = nil; response = nil; activeAddress = nil
         let completion = current?.completion
         current = nil; queue = []; decoder = SonyDecoder()
         status = message; completion?(nil)

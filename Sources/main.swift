@@ -7,8 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var menu = NSMenu()
     var menuOpen = false
     var hardwareTest: HardwareTest?
+    var extraHardwareTest: ExtraHardwareTest?
+    var settings: SettingsStore!
     func applicationDidFinishLaunching(_ notification: Notification) {
-        do { headphones = try Headphones(settings: SettingsStore()) }
+        do { settings = try SettingsStore(); headphones = try Headphones(settings: settings) }
         catch {
             let alert = NSAlert()
             alert.messageText = "Could not load settings"
@@ -26,7 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self; item.menu = menu
         headphones.changed = { [weak self] in self?.update() }
         update(); headphones.start()
-        if args.contains("--hardware-test") { hardwareTest = HardwareTest(headphones); hardwareTest?.start() }
+        if args.contains("--extra-hardware-test") { extraHardwareTest = ExtraHardwareTest(headphones, store: settings); extraHardwareTest?.start() }
+        else if args.contains("--hardware-test") { hardwareTest = HardwareTest(headphones); hardwareTest?.start() }
     }
     func menuWillOpen(_ menu: NSMenu) { menuOpen = true; headphones.scan(); rebuild() }
     func menuDidClose(_ menu: NSMenu) { menuOpen = false }
@@ -53,17 +56,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             entry.tag = mode.rawValue; entry.state = headphones.state?.mode == mode ? .on : .off
             entry.keyEquivalent = String(mode.rawValue + 1)
         }
+        let moreMenu = NSMenu(); moreMenu.autoenablesItems = false
+        func extraAdd(_ title: String, _ action: Selector? = nil, enabled: Bool = true) -> NSMenuItem {
+            let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            entry.target = self; entry.isEnabled = enabled && action != nil
+            moreMenu.addItem(entry); return entry
+        }
         if !headphones.isNothing {
         let levelMenu = NSMenu(); levelMenu.autoenablesItems = false
-        let levelItem = add("Ambient level: \(headphones.state.map { String($0.level) } ?? "Unknown")", #selector(noop), enabled: enabled && !headphones.ambientLevels.isEmpty)
+        let levelItem = extraAdd("Ambient level: \(headphones.state.map { String($0.level) } ?? "Unknown")", #selector(noop), enabled: enabled && !headphones.ambientLevels.isEmpty)
         levelItem.submenu = levelMenu
         for level in headphones.ambientLevels {
             let entry = NSMenuItem(title: "\(level)", action: #selector(levelSelected(_:)), keyEquivalent: "")
             entry.isEnabled = enabled; entry.tag = level; entry.target = self; entry.state = headphones.state?.level == level ? .on : .off
             levelMenu.addItem(entry)
         }
-        let voice = add("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient && headphones.supportsVoice)
+        let voice = extraAdd("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient && headphones.supportsVoice)
         voice.state = headphones.state?.voice == true ? .on : .off
+        }
+        let equaliserMenu = NSMenu(); equaliserMenu.autoenablesItems = false
+        let equaliserTitles: Set<String> = ["Equaliser","Clear Bass","400 Hz","1 kHz","2.5 kHz","6.3 kHz","16 kHz"]
+        for control in headphones.extraControls {
+            let sub = NSMenu(); sub.autoenablesItems = false
+            let isEqualiser = equaliserTitles.contains(control.title)
+            let entry = NSMenuItem(title: control.title == "Equaliser" ? "Preset" : control.title, action: #selector(noop), keyEquivalent: "")
+            entry.target = self; entry.isEnabled = !headphones.busy; entry.submenu = sub
+            (isEqualiser ? equaliserMenu : moreMenu).addItem(entry)
+            for choice in control.choices {
+                let item = NSMenuItem(title: choice.title, action: #selector(extraSelected(_:)), keyEquivalent: "")
+                item.target = self; item.representedObject = control.id; item.tag = choice.value
+                item.isEnabled = headphones.ready && !headphones.busy
+                item.state = choice.value == control.selected ? .on : .off
+                sub.addItem(item)
+            }
+        }
+        if equaliserMenu.numberOfItems > 0 {
+            let equaliser = NSMenuItem(title: "Equaliser", action: #selector(noop), keyEquivalent: "")
+            equaliser.target = self; equaliser.submenu = equaliserMenu
+            moreMenu.insertItem(equaliser, at: 0)
+        }
+        if moreMenu.numberOfItems > 0 {
+            let more = add("More settings", #selector(noop))
+            more.submenu = moreMenu
         }
         menu.addItem(.separator())
         let deviceMenu = NSMenu(); deviceMenu.autoenablesItems = false
@@ -93,6 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.informativeText = error.localizedDescription
             alert.runModal()
         }
+    }
+    @objc func extraSelected(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        headphones.setExtra(id: id, value: sender.tag)
     }
     @objc func noop() {}
     @objc func modeSelected(_ sender: NSMenuItem) { if let mode = SoundMode(rawValue: sender.tag) { headphones.set(mode) } }

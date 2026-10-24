@@ -6,7 +6,9 @@ swiftc Sources/SonyProtocol.swift Sources/Compatibility.swift Tests/ProtocolTest
 build/ProtocolTests
 swiftc Sources/SonyProtocol.swift Sources/Compatibility.swift Tests/CompatibilityTests.swift -o build/CompatibilityTests
 build/CompatibilityTests
-swiftc Sources/SonyProtocol.swift Sources/NothingProtocol.swift Tests/NothingTests.swift -o build/NothingTests
+swiftc Sources/SonyProtocol.swift Sources/NothingProtocol.swift Sources/ExtraControls.swift Sources/NothingExtras.swift Tests/NothingTests.swift -o build/NothingTests
 build/NothingTests
 swiftc Sources/SettingsStore.swift Tests/SettingsTests.swift -lsqlite3 -o build/SettingsTests
 build/SettingsTests
+swiftc Sources/SonyProtocol.swift Sources/Compatibility.swift Sources/ExtraControls.swift Sources/NothingExtras.swift Sources/NothingProtocol.swift Tests/ExtraControlTests.swift -o build/ExtraControlTests
+build/ExtraControlTests

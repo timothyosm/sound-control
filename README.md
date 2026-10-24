@@ -6,6 +6,7 @@ You can:
 
 - switch between noise cancelling, ambient sound or transparency, and off
 - adjust ambient sound levels and focus on voices on supported Sony devices
+- change equaliser, playback and connection settings under **More settings**
 - check headphone and charging case batteries
 - choose your headphones and reconnect automatically
 - open the app when you log in.
@@ -25,7 +26,7 @@ Only LinkBuds S has been tested on a physical device. Tests for other devices us
 
 The app checks the services and features that each device reports before enabling controls. Renaming your headphones does not prevent discovery.
 
-Nothing and CMF controls appear after the app receives valid settings. The menu bar icon’s tooltip notes that these devices have not been tested. Ear (open) and Ear (stick) provide battery readings only. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
+Nothing and CMF controls appear after the app receives valid settings. The menu bar icon’s tooltip notes that these devices have not been tested. Ear (open) and Ear (stick) do not expose noise controls in this app. Other settings appear only after valid replies. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
 
 ## Install and open the app
 
@@ -54,7 +55,7 @@ The app stores preferences in a local SQLite database:
 ~/Library/Application Support/Sound Control/settings.sqlite3
 ```
 
-The database currently stores your headphone selection. It also records completed data migrations. The app moves your existing selection from macOS preferences on its first successful launch after this update.
+The database stores your headphone selection, completed data migrations and any pending restoration from an optional device test. The app moves your existing selection from macOS preferences on its first successful launch after this update.
 
 Migration runs in a transaction. The app removes the old preference only after the transaction succeeds. If the database cannot open, the app shows an error and stops. If a selection cannot be saved, the app keeps the previous selection and shows an error.
 
@@ -74,6 +75,28 @@ Unknown battery readings appear as **Unknown**. The charging case reading may be
 
 If a connection times out, close other headphone control apps and choose **Reconnect**. If the device does not appear, reconnect it through macOS Bluetooth settings.
 
+## More settings
+
+The main menu keeps noise controls and battery readings close at hand. **More settings** contains additional controls that the connected device reports.
+
+For Sony MDR V2 devices, these can include:
+
+- equaliser presets, Clear Bass and five frequency bands
+- Speak-to-Chat, automatic pause and automatic power off
+- multipoint, touch assignments and voice guidance
+- DSEE and the Bluetooth connection preference.
+
+All these setting types were discovered on LinkBuds S with firmware 4.3.1. Other Sony models may expose different options. Older MDR V1 devices keep their existing noise and battery controls; this update does not add their extra setting formats.
+
+For Nothing and CMF devices, the app can expose:
+
+- equaliser presets and the advanced equaliser switch
+- noise cancelling strength and personalised noise cancelling
+- automatic pause and low-lag mode
+- dual connection and bass enhancement.
+
+Nothing and CMF support remains experimental, with simulated tests only. Read the [extra control notes](docs/extra-controls.md) for the exact scope and verification limits.
+
 ## Tests
 
 Run `./scripts/test.sh` to check message handling, simulated device support and SQLite storage. Storage tests cover migration, reopening the database, failed writes, locked databases and damaged files.
@@ -88,9 +111,19 @@ The log records each check and the restoration result. If Bluetooth disconnects 
 
 The LinkBuds S test passed for noise cancelling, off, ambient sound at level 10, voice focus and restoration of the original settings. These checks confirm the settings reported by the device. They do not measure sound quality or noise reduction.
 
+You can also run the extra control test:
+
+```sh
+open "build/Sound Control.app" --args --extra-hardware-test --log /tmp/sound-control-extra-test.log
+```
+
+This test temporarily changes DSEE, Speak-to-Chat, automatic pause and voice guidance, then restores each setting. It writes the current value for equaliser presets, power, connection and touch controls. It does not alter custom equaliser bands.
+
+The test saves a restoration record in SQLite before each write. If it stops before confirming restoration, connect the same headphones and rerun the test. A normal launch does not apply pending test settings.
+
 ## Limits
 
-The app does not provide an equaliser, firmware updates, location-based controls or controls for other product types. Login startup and sleep and wake behaviour need longer-term testing.
+The app does not provide firmware updates, location-based controls or controls for other product types. Login startup and sleep and wake behaviour need longer-term testing.
 
 Sony sound formats include V1 noise cancelling (`01`), combined noise cancelling and ambient sound (`02`), and ambient sound (`03`). V2 formats include noise cancelling (`01`), combined controls (`13`, `14`, `16`, `17`, `18`, `19`), and ambient sound (`21`, `22`). Format `19` preserves the device’s noise adaptation fields. Other formats remain unsupported. Wind reduction and adaptive modes are not separate menu controls.
 
