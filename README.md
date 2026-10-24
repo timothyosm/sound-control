@@ -25,7 +25,7 @@ Only LinkBuds S has been tested on a physical device. Tests for other devices us
 
 The app checks the services and features that each device reports before enabling controls. Renaming your headphones does not prevent discovery.
 
-Nothing and CMF controls appear after the app receives valid settings. The menu shows that these devices have not been tested. Ear (open) and Ear (stick) provide battery readings only. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
+Nothing and CMF controls appear after the app receives valid settings. The menu bar icon’s tooltip notes that these devices have not been tested. Ear (open) and Ear (stick) provide battery readings only. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
 
 ## Install and open the app
 

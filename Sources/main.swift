@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) { menuOpen = true; headphones.scan(); rebuild() }
     func menuDidClose(_ menu: NSMenu) { menuOpen = false }
     func update() {
-        item.button?.toolTip = "\(headphones.deviceName) · \(headphones.status)"
+        item.button?.toolTip = "\(headphones.deviceName) · \(headphones.status)" + (headphones.isNothing ? "\nNothing and CMF: not tested on devices" : "")
         item.button?.appearsDisabled = !headphones.ready
         if !menuOpen { rebuild() }
     }
@@ -41,15 +41,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     func rebuild() {
         menu.removeAllItems(); menu.autoenablesItems = false
-        add(headphones.deviceName)
-        add(headphones.status)
-        if headphones.isNothing { add("Nothing and CMF: not tested on devices") }
         if let battery = headphones.battery { add("Battery: \(battery)%") }
         if headphones.left != nil || headphones.right != nil {
             func value(_ n: Int?) -> String { n.map { "\($0)%" } ?? "Unknown" }
             add("Left: \(value(headphones.left))   Right: \(value(headphones.right))   Case: \(value(headphones.caseBattery))")
         }
-        menu.addItem(.separator())
+        if menu.numberOfItems > 0 { menu.addItem(.separator()) }
         let enabled = headphones.ready && headphones.state != nil && !headphones.busy
         for mode in SoundMode.allCases {
             let entry = add(headphones.title(for: mode), #selector(modeSelected(_:)), enabled: enabled && headphones.availableModes.contains(mode))
