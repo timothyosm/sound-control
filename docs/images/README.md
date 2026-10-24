@@ -1,6 +1,6 @@
 # Header illustration
 
-The Sound Control header was generated on 24 October 2026 with OpenAI’s built-in image generation tool. It uses abstract shapes and sound-wave curves. It is decorative artwork, not an app screenshot.
+The Sound Control header was generated on 24 October 2026 with OpenAI’s built-in image generation tool. A playful spaceship sends sound waves to a dish on the moon, reflecting the name’s joke on ‘ground control’. It is decorative artwork, not an app screenshot.
 
 The published JPEG is 2172 × 724 pixels. It was compressed for use in the README. It contains no written instructions or essential information. The README gives it an empty alt attribute, following the Style Manual’s [guidance for decorative images](https://www.stylemanual.gov.au/content-types/images/alt-text-captions-and-titles-images#decorative-images).
 
@@ -9,5 +9,5 @@ The published JPEG is 2172 × 724 pixels. It was compressed for use in the READM
 The tool used this prompt:
 
 ```text
-Create a flat abstract graphic for the header of Sound Control, a small headphone control app. Wide horizontal banner, 3:1 aspect ratio. Minimal graphic design: bold clean overlapping circles, semicircles and a few smooth parallel wave curves suggesting sound and quiet. Solid ink navy, muted cobalt blue and warm ivory colour fields. Asymmetric balanced composition with generous negative space. Strictly flat 2D, sharp vector-like edges. No gradients, textures, grain, shadows, lighting, depth, 3D, objects, devices, headphones, laptop, plants, people, words, letters, numbers, logos or watermarks. Sophisticated and restrained, not a product mockup.
+Use case: stylized-concept. Create a playful flat vector-style header banner for an app named Sound Control, a pun on ground control. Wide horizontal 3:1 composition. A cheerful little retro spaceship with a round porthole cruises through space, sending three curved radio/sound-wave lines to a tiny mission-control satellite dish on a curved moon surface. A few oversized simple planets and sparse four-point stars. The radio waves are the main visual connection: sound control meets ground control. Charming, witty and slightly offbeat editorial graphic design, not childish clip art. Strictly flat 2D geometric shapes, solid ink navy, warm ivory, bright coral and muted cobalt; clean crisp edges, bold silhouettes, plenty of negative space, restrained detail. The spaceship is the hero. No words, letters, numerals, logos, UI, photographic objects, gradients, textures, grain, shadows, lighting, 3D rendering or watermark. Fun and graphic rather than realistic.
 ```
