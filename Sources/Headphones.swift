@@ -3,18 +3,39 @@ import IOBluetooth
 
 final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     var changed: (() -> Void)?
-    var status = "Looking for Sony headphones…" { didSet { changed?(); log(status) } }
+    var status = "Looking for headphones…" { didSet { changed?(); log(status) } }
     var state: SoundState?
     var left: Int?, right: Int?, caseBattery: Int?, battery: Int?
-    var deviceName = "Sony headphones"
+    var deviceName = "Headphones"
     var generation: SonyGeneration = .v2
     var capabilities: SonyCapabilities?
     var control: SoundControl?
+    enum Backend {
+        case sony(SonyGeneration), nothing
+        var label: String { switch self { case .sony(let generation): return "Sony " + generation.rawValue; case .nothing: return "Nothing / CMF" } }
+        var serviceBytes: [UInt8] { switch self { case .sony(let generation): return generation.serviceBytes; case .nothing: return NothingFrame.serviceBytes } }
+    }
+    var isNothing = false
+    private var nothingSession: NothingSession?
+    private var nothingDecoder = NothingDecoder()
+    private var nothingTimer: Timer?
+    private struct NothingView: Equatable {
+        let ready: Bool
+        let busy: Bool
+        let mode: SoundMode?
+        let batteries: NothingBatteries?
+        let status: String
+    }
+    private var lastNothingView: NothingView?
+    var availableModes: [SoundMode] { isNothing ? (state == nil ? [] : SoundMode.allCases) : (control?.modes ?? []) }
+    var ambientLevels: [Int] { isNothing ? [] : (control?.levels[state?.voice ?? false] ?? []) }
+    var supportsVoice: Bool { !isNothing && control?.hasVoice == true }
+    func title(for mode: SoundMode) -> String { isNothing && mode == .ambient ? "Transparency" : mode.title }
     struct Device {
         let address: String
         let name: String
         let connected: Bool
-        let generation: SonyGeneration
+        let backend: Backend
         let device: IOBluetoothDevice
         let service: IOBluetoothSDPServiceRecord
     }
@@ -25,7 +46,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     private var lastInboundSequence: UInt8?
     private var pumpingDeferred = false
     var ready = false
-    var busy: Bool { current != nil || !queue.isEmpty }
+    var busy: Bool { isNothing ? (nothingSession?.busy ?? false) : (current != nil || !queue.isEmpty) }
     private var channel: IOBluetoothRFCOMMChannel?
     private var decoder = SonyDecoder()
     private var sequence: UInt8 = 0
@@ -65,10 +86,10 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     func scan() {
         let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []
         devices = paired.compactMap { device in
-            for generation in [SonyGeneration.v2, .v1] {
-                let uuid = generation.serviceBytes.withUnsafeBytes { IOBluetoothSDPUUID(bytes: $0.baseAddress, length: 16) }
+            for backend in [Backend.sony(.v2), .sony(.v1), .nothing] {
+                let uuid = backend.serviceBytes.withUnsafeBytes { IOBluetoothSDPUUID(bytes: $0.baseAddress, length: 16) }
                 if let service = device.getServiceRecord(for: uuid), let address = device.addressString {
-                    return Device(address: address, name: device.name ?? "Sony headphones", connected: device.isConnected(), generation: generation, device: device, service: service)
+                    return Device(address: address, name: device.name ?? "Headphones", connected: device.isConnected(), backend: backend, device: device, service: service)
                 }
             }
             return nil
@@ -84,18 +105,22 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         scan()
         let candidate = selectedAddress.flatMap { address in devices.first { $0.address == address } }
         guard let selected = selectedAddress != nil ? candidate : devices.first(where: { $0.connected }) else {
-            status = "Connect a compatible Sony headset in Bluetooth Settings"; return
+            status = "Connect a compatible Sony or Nothing headset in Bluetooth Settings"; return
         }
-        deviceName = selected.name; activeAddress = selected.address; generation = selected.generation
+        deviceName = selected.name; activeAddress = selected.address
+        switch selected.backend {
+        case .sony(let version): isNothing = false; generation = version
+        case .nothing: isNothing = true
+        }
         guard selected.connected else { status = "Connect \(deviceName) in Bluetooth Settings"; return }
         var id: BluetoothRFCOMMChannelID = 0
-        guard selected.service.getRFCOMMChannelID(&id) == kIOReturnSuccess else { status = "Sony control channel unavailable"; return }
+        guard selected.service.getRFCOMMChannelID(&id) == kIOReturnSuccess else { status = "Headphone control channel unavailable"; return }
         opening = true; status = "Connecting to \(deviceName)…"
         let result = selected.device.openRFCOMMChannelAsync(&channel, withChannelID: id, delegate: self)
         if result != kIOReturnSuccess { fail("Bluetooth connection failed (\(result))") }
         else if opening {
             timeout = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
-                if self?.opening == true { self?.fail("Connection timed out. Close other Sony control apps.") }
+                if self?.opening == true { self?.fail("Connection timed out. Close other headphone control apps.") }
             }
         }
     }
@@ -105,6 +130,7 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         timeout?.invalidate(); opening = false
         guard error == kIOReturnSuccess else { fail("Bluetooth connection failed (\(error))"); return }
         channel = rfcommChannel; sequence = 0; decoder = SonyDecoder()
+        if isNothing { startNothing(); return }
         enqueue([0x00, 0x00], reply: 0x01) { [weak self] response in
             guard let self, let response else { return }
             guard self.generation.acceptsHandshake(response) else {
@@ -136,6 +162,14 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!, data dataPointer: UnsafeMutableRawPointer!, length dataLength: Int) {
         guard rfcommChannel === channel else { return }
         let bytes = Array(UnsafeBufferPointer(start: dataPointer.assumingMemoryBound(to: UInt8.self), count: dataLength))
+        if isNothing {
+            for frame in nothingDecoder.feed(bytes) {
+                let frames = nothingSession?.receive(frame, now: ProcessInfo.processInfo.systemUptime) ?? []
+                sendNothing(frames)
+            }
+            syncNothing()
+            return
+        }
         for frame in decoder.feed(bytes) {
             log("RX \(frame.type) \(frame.sequence) " + frame.payload.map { String(format: "%02x", $0) }.joined(separator: " "))
             if frame.type == 1 {
@@ -178,6 +212,10 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         changed?()
     }
     func refresh() {
+        if isNothing {
+            sendNothing(nothingSession?.refresh(now: ProcessInfo.processInfo.systemUptime) ?? [])
+            syncNothing(); return
+        }
         guard ready, !busy else { return }
         if let control { enqueue([0x66,control.type], reply: 0x67, optional: true) }
         for type in capabilities?.batteryTypes ?? [] {
@@ -185,6 +223,11 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         }
     }
     func set(_ mode: SoundMode, level: Int? = nil, voice: Bool? = nil) {
+        if isNothing {
+            guard level == nil, voice == nil else { return }
+            sendNothing(nothingSession?.set(mode, now: ProcessInfo.processInfo.systemUptime) ?? [])
+            syncNothing(); return
+        }
         guard ready, !busy, let control,
               let command = control.command(mode, level: level, voice: voice), let expected = control.decode(command) else { return }
         wanted = expected; status = "Applying \(mode.title)…"
@@ -228,8 +271,40 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         // Defer the next request until this batch of incoming frames has been handled.
         DispatchQueue.main.async { [weak self] in self?.pumpingDeferred = false; self?.pump(); self?.changed?() }
     }
+    private func startNothing() {
+        nothingDecoder = NothingDecoder()
+        nothingSession = NothingSession(probeSound: NothingSession.shouldProbeSound(deviceName: deviceName))
+        sendNothing(nothingSession!.start(now: ProcessInfo.processInfo.systemUptime))
+        syncNothing()
+        guard channel != nil, nothingSession != nil else { return }
+        nothingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self, self.channel != nil, self.isNothing else { return }
+            let frames = self.nothingSession?.tick(now: ProcessInfo.processInfo.systemUptime) ?? []
+            self.sendNothing(frames); self.syncNothing()
+        }
+    }
+    private func sendNothing(_ frames: [NothingFrame]) {
+        for frame in frames {
+            log(String(format: "Nothing TX %04x operation=%d", frame.command, frame.operation))
+            guard write(frame.encoded) else { return }
+        }
+    }
+    private func syncNothing() {
+        guard let session = nothingSession else { return }
+        if session.failed { fail(session.status); return }
+        let snapshot = NothingView(ready: session.ready, busy: session.busy, mode: session.sound?.mode, batteries: session.batteries, status: session.status)
+        guard snapshot != lastNothingView else { return }
+        lastNothingView = snapshot
+        ready = session.ready
+        state = session.sound.map { SoundState(mode: $0.mode, level: 0, voice: false) }
+        left = session.batteries?.left; right = session.batteries?.right
+        caseBattery = session.batteries?.cradle; battery = session.batteries?.single
+        if status != session.status { status = session.status }
+        changed?()
+    }
     func retry() { fail("Reconnecting…"); connect() }
     private func fail(_ message: String) {
+        nothingTimer?.invalidate(); nothingTimer = nil; nothingSession = nil; nothingDecoder = NothingDecoder(); lastNothingView = nil
         timeout?.invalidate(); timeout = nil
         channel?.setDelegate(nil); channel?.close(); channel = nil
         opening = false; ready = false; state = nil; wanted = nil

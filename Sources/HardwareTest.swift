@@ -14,6 +14,10 @@ final class HardwareTest {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
     }
     func tick() {
+        if headphones.isNothing {
+            headphones.log("HARDWARE TEST SKIPPED: automated hardware checks currently cover Sony only")
+            timer?.invalidate(); return
+        }
         if Date().timeIntervalSince(started) > 60 {
             headphones.log("HARDWARE TEST TIMEOUT — restore original settings manually if disconnected")
             if let original { headphones.set(original.mode, level: original.level, voice: original.voice) }

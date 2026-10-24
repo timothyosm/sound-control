@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let args = CommandLine.arguments
         if let index = args.firstIndex(of: "--log"), args.count > index + 1 { headphones.logURL = URL(fileURLWithPath: args[index + 1]) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(systemSymbolName: "earbuds", accessibilityDescription: "Sony headphone controls")
+        item.button?.image = NSImage(systemSymbolName: "earbuds", accessibilityDescription: "Headphone controls")
         item.button?.image?.isTemplate = true
         item.button?.toolTip = headphones.deviceName
         menu.delegate = self; item.menu = menu
@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems(); menu.autoenablesItems = false
         add(headphones.deviceName)
         add(headphones.status)
+        if headphones.isNothing { add("Nothing support · hardware unverified") }
         if let battery = headphones.battery { add("Battery · \(battery)%") }
         if headphones.left != nil || headphones.right != nil {
             func value(_ n: Int?) -> String { n.map { "\($0)%" } ?? "—" }
@@ -42,20 +43,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let enabled = headphones.ready && headphones.state != nil && !headphones.busy
         for mode in SoundMode.allCases {
-            let entry = add(mode.title, #selector(modeSelected(_:)), enabled: enabled && headphones.control?.modes.contains(mode) == true)
+            let entry = add(headphones.title(for: mode), #selector(modeSelected(_:)), enabled: enabled && headphones.availableModes.contains(mode))
             entry.tag = mode.rawValue; entry.state = headphones.state?.mode == mode ? .on : .off
             entry.keyEquivalent = String(mode.rawValue + 1)
         }
+        if !headphones.isNothing {
         let levelMenu = NSMenu(); levelMenu.autoenablesItems = false
-        let levelItem = add("Ambient level · \(headphones.state?.level ?? 10)", #selector(noop), enabled: enabled && headphones.control?.hasAmbient == true)
+        let levelItem = add("Ambient level · \(headphones.state?.level ?? 10)", #selector(noop), enabled: enabled && !headphones.ambientLevels.isEmpty)
         levelItem.submenu = levelMenu
-        for level in headphones.control?.levels[headphones.state?.voice ?? false] ?? [] {
+        for level in headphones.ambientLevels {
             let entry = NSMenuItem(title: "\(level)", action: #selector(levelSelected(_:)), keyEquivalent: "")
             entry.isEnabled = enabled; entry.tag = level; entry.target = self; entry.state = headphones.state?.level == level ? .on : .off
             levelMenu.addItem(entry)
         }
-        let voice = add("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient && headphones.control?.hasVoice == true)
+        let voice = add("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient && headphones.supportsVoice)
         voice.state = headphones.state?.voice == true ? .on : .off
+        }
         menu.addItem(.separator())
         let deviceMenu = NSMenu(); deviceMenu.autoenablesItems = false
         let deviceItem = add("Headphones", #selector(noop)); deviceItem.submenu = deviceMenu
@@ -63,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         automatic.target = self; automatic.state = headphones.selectedAddress == nil ? .on : .off
         deviceMenu.addItem(automatic)
         for device in headphones.devices {
-            let entry = NSMenuItem(title: "\(device.name) · \(device.generation.rawValue)" + (device.connected ? "" : " · Disconnected"), action: #selector(selectDevice(_:)), keyEquivalent: "")
+            let entry = NSMenuItem(title: "\(device.name) · \(device.backend.label)" + (device.connected ? "" : " · Disconnected"), action: #selector(selectDevice(_:)), keyEquivalent: "")
             entry.target = self; entry.representedObject = device.address
             entry.state = headphones.activeAddress == device.address ? .on : .off
             deviceMenu.addItem(entry)
