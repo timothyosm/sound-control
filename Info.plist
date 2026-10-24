@@ -5,10 +5,10 @@
 <key>CFBundleIdentifier</key><string>app.timothyosmond.LinkBudsBar</string>
 <key>CFBundleName</key><string>LinkBudsBar</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>0.2.0</string>
+<key>CFBundleVersion</key><string>2</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
-<key>NSBluetoothAlwaysUsageDescription</key><string>Control noise cancelling and ambient sound and read battery levels on your LinkBuds S.</string>
-<key>NSBluetoothPeripheralUsageDescription</key><string>Connect to your LinkBuds S controls.</string>
+<key>NSBluetoothAlwaysUsageDescription</key><string>Control noise cancelling and ambient sound and read battery levels on compatible Sony headphones.</string>
+<key>NSBluetoothPeripheralUsageDescription</key><string>Connect to your Sony headphone controls.</string>
 </dict></plist>

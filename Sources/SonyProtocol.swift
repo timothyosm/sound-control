@@ -52,6 +52,11 @@ struct SoundState: Equatable {
     var mode: SoundMode
     var level: Int
     var voice: Bool
+    // Devices may normalize inactive ambient fields when NC or Off is selected.
+    func matches(_ other: SoundState) -> Bool {
+        mode == other.mode && (mode != .ambient || (level == other.level && voice == other.voice))
+    }
+    init(mode: SoundMode, level: Int, voice: Bool) { self.mode = mode; self.level = level; self.voice = voice }
     init?(payload: [UInt8]) {
         guard payload.count >= 7, [0x67, 0x69].contains(payload[0]), payload[1] == 0x17,
               payload[3] <= 1, payload[4] <= 1, payload[5] <= 1, payload[6] <= 20 else { return nil }

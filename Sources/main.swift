@@ -11,18 +11,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let args = CommandLine.arguments
         if let index = args.firstIndex(of: "--log"), args.count > index + 1 { headphones.logURL = URL(fileURLWithPath: args[index + 1]) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(systemSymbolName: "earbuds", accessibilityDescription: "LinkBuds S controls")
+        item.button?.image = NSImage(systemSymbolName: "earbuds", accessibilityDescription: "Sony headphone controls")
         item.button?.image?.isTemplate = true
-        item.button?.toolTip = "LinkBuds S"
+        item.button?.toolTip = headphones.deviceName
         menu.delegate = self; item.menu = menu
         headphones.changed = { [weak self] in self?.update() }
         update(); headphones.start()
         if args.contains("--hardware-test") { hardwareTest = HardwareTest(headphones); hardwareTest?.start() }
     }
-    func menuWillOpen(_ menu: NSMenu) { menuOpen = true; rebuild() }
+    func menuWillOpen(_ menu: NSMenu) { menuOpen = true; headphones.scan(); rebuild() }
     func menuDidClose(_ menu: NSMenu) { menuOpen = false }
     func update() {
-        item.button?.toolTip = "LinkBuds S · \(headphones.status)"
+        item.button?.toolTip = "\(headphones.deviceName) · \(headphones.status)"
         item.button?.appearsDisabled = !headphones.ready
         if !menuOpen { rebuild() }
     }
@@ -32,8 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     func rebuild() {
         menu.removeAllItems(); menu.autoenablesItems = false
-        add("LinkBuds S")
+        add(headphones.deviceName)
         add(headphones.status)
+        if let battery = headphones.battery { add("Battery · \(battery)%") }
         if headphones.left != nil || headphones.right != nil {
             func value(_ n: Int?) -> String { n.map { "\($0)%" } ?? "—" }
             add("L \(value(headphones.left))   R \(value(headphones.right))   Case \(value(headphones.caseBattery))")
@@ -41,21 +42,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let enabled = headphones.ready && headphones.state != nil && !headphones.busy
         for mode in SoundMode.allCases {
-            let entry = add(mode.title, #selector(modeSelected(_:)), enabled: enabled)
+            let entry = add(mode.title, #selector(modeSelected(_:)), enabled: enabled && headphones.control?.modes.contains(mode) == true)
             entry.tag = mode.rawValue; entry.state = headphones.state?.mode == mode ? .on : .off
             entry.keyEquivalent = String(mode.rawValue + 1)
         }
         let levelMenu = NSMenu(); levelMenu.autoenablesItems = false
-        let levelItem = add("Ambient level · \(headphones.state?.level ?? 10)", #selector(noop), enabled: enabled)
+        let levelItem = add("Ambient level · \(headphones.state?.level ?? 10)", #selector(noop), enabled: enabled && headphones.control?.hasAmbient == true)
         levelItem.submenu = levelMenu
-        for level in 1...20 {
-            let entry = NSMenuItem(title: "\(level)" + (level == 1 ? " · Quietest" : level == 20 ? " · Most surroundings" : ""), action: #selector(levelSelected(_:)), keyEquivalent: "")
-            entry.tag = level; entry.target = self; entry.state = headphones.state?.level == level ? .on : .off
+        for level in headphones.control?.levels[headphones.state?.voice ?? false] ?? [] {
+            let entry = NSMenuItem(title: "\(level)", action: #selector(levelSelected(_:)), keyEquivalent: "")
+            entry.isEnabled = enabled; entry.tag = level; entry.target = self; entry.state = headphones.state?.level == level ? .on : .off
             levelMenu.addItem(entry)
         }
-        let voice = add("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient)
+        let voice = add("Focus on voices", #selector(toggleVoice), enabled: enabled && headphones.state?.mode == .ambient && headphones.control?.hasVoice == true)
         voice.state = headphones.state?.voice == true ? .on : .off
         menu.addItem(.separator())
+        let deviceMenu = NSMenu(); deviceMenu.autoenablesItems = false
+        let deviceItem = add("Headphones", #selector(noop)); deviceItem.submenu = deviceMenu
+        let automatic = NSMenuItem(title: "Automatically choose connected headset", action: #selector(selectDevice(_:)), keyEquivalent: "")
+        automatic.target = self; automatic.state = headphones.selectedAddress == nil ? .on : .off
+        deviceMenu.addItem(automatic)
+        for device in headphones.devices {
+            let entry = NSMenuItem(title: "\(device.name) · \(device.generation.rawValue)" + (device.connected ? "" : " · Disconnected"), action: #selector(selectDevice(_:)), keyEquivalent: "")
+            entry.target = self; entry.representedObject = device.address
+            entry.state = headphones.activeAddress == device.address ? .on : .off
+            deviceMenu.addItem(entry)
+        }
         add("Refresh", #selector(refresh), enabled: headphones.ready && !headphones.busy)
         add("Reconnect", #selector(reconnect))
         add("Bluetooth Settings…", #selector(bluetooth))
@@ -64,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         add("Quit LinkBudsBar", #selector(quit)).keyEquivalent = "q"
     }
+    @objc func selectDevice(_ sender: NSMenuItem) { headphones.select(sender.representedObject as? String) }
     @objc func noop() {}
     @objc func modeSelected(_ sender: NSMenuItem) { if let mode = SoundMode(rawValue: sender.tag) { headphones.set(mode) } }
     @objc func levelSelected(_ sender: NSMenuItem) { headphones.set(.ambient, level: sender.tag) }
