@@ -29,3 +29,15 @@ Use minimal punctuation. Where a sentence needs a dash, use a [spaced en dash](h
 Review every changed string in context. Check clarity, spelling, capitalisation, punctuation, headings, lists and links against the relevant Style Manual guidance.
 
 Keep claims consistent with the evidence. Distinguish simulated tests from tests on physical devices. Do not claim that a successful build establishes accessibility or compatibility with every device.
+
+## README structure and images
+
+Put the purpose, compatibility and installation steps before developer instructions. Use numbered steps for tasks that must happen in order. Keep detailed hardware tests in their own guide.
+
+Follow the Style Manual’s guidance on [plain language and word choice](https://www.stylemanual.gov.au/writing-and-designing-content/clear-language-and-writing-style/plain-language-and-word-choice) and [sentence length](https://www.stylemanual.gov.au/writing-and-designing-content/clear-language-and-writing-style/sentences). Explain unfamiliar terms. Aim for an average of 15 words per sentence and no more than 25.
+
+Use one main heading and do not skip heading levels. Keep headings under 70 characters. Use descriptive links that make sense on their own. Prefer prose or lists when a table adds no useful comparison.
+
+The README header is decorative. Give it an empty alt attribute and keep all essential information in text. Use a `picture` element so GitHub does not turn the image into an unnamed link. Record the image source and generation prompt with the artwork. Check the rendered image and text at desktop and mobile widths.
+
+Review against the Style Manual’s [image guidance](https://www.stylemanual.gov.au/content-types/images) and [alt text guidance](https://www.stylemanual.gov.au/content-types/images/alt-text-captions-and-titles-images). A documentation review does not certify the accessibility of GitHub or the app.

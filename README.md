@@ -1,146 +1,126 @@
+<picture>
+  <img src="docs/images/sound-control-header.jpg" alt="" width="1086">
+</picture>
+
 # Sound Control
 
-Sound Control lets you change headphone settings from the macOS menu bar. It supports compatible Sony headphones and has experimental support for Nothing and CMF devices.
+Control your headphones from the macOS menu bar. Sound Control lets you change noise settings, check batteries and adjust other supported features without opening a phone app.
 
-You can:
+You need a Mac with Apple silicon or an Intel processor, macOS 13 or later, and compatible Bluetooth headphones. Only Sony LinkBuds S has been tested on a physical device. Support for other Sony models, Nothing and CMF devices needs further testing.
 
-- switch between noise cancelling, ambient sound or transparency, and off
-- adjust ambient sound levels and focus on voices on supported Sony devices
-- change equaliser, playback and connection settings under **More settings**
-- check headphone and charging case batteries
-- choose your headphones and reconnect automatically
-- open the app when you log in.
+## Headphone compatibility
 
-## Compatibility
+Sound Control checks the features your headphones report before showing their controls. Available settings depend on the model and firmware, which is the software inside your headphones.
 
-Only LinkBuds S has been tested on a physical device. Tests for other devices use simulated messages. Model examples below are candidates for testing, not guarantees of compatibility.
+The current testing status is:
 
-| Device or protocol | Support |
-| --- | --- |
-| LinkBuds S with firmware 4.3.1 | Tested on a device: feature discovery, sound changes, battery readings and restoration of original settings |
-| Nothing and CMF headphones and earbuds | Experimental noise cancelling, transparency and battery controls; no device testing |
-| Sony MDR V1, such as WH-1000XM3 and WH-1000XM4 | Tested with simulated messages; no device testing |
-| Sony MDR V2, such as WH-1000XM5, WH-1000XM6, WF-1000XM5, WH-CH720N and WF-C700N | Supported message formats are implemented; these models need device testing |
-| Devices that report batteries but lack supported sound controls | Battery readings only |
-| TVs, cameras, consoles, speakers and devices that use only USB or Bluetooth Low Energy | Not supported |
+- **Sony LinkBuds S** has passed device tests for noise controls, battery readings and extra settings with firmware 4.3.1.
+- **Other Sony headphones** have simulated tests for their communication formats but have not been tested on physical devices.
+- **Nothing and CMF devices** have experimental support, with simulated tests only.
 
-The app checks the services and features that each device reports before enabling controls. Renaming your headphones does not prevent discovery.
+Sony candidates include WH-1000XM3, WH-1000XM4, WH-1000XM5, WH-1000XM6, WF-1000XM5, WH-CH720N and WF-C700N. Ear (open) and Ear (stick) do not expose noise controls in this app.
 
-Nothing and CMF controls appear after the app receives valid settings. The menu bar icon’s tooltip notes that these devices have not been tested. Ear (open) and Ear (stick) do not expose noise controls in this app. Other settings appear only after valid replies. Read the [Nothing and CMF protocol notes](docs/nothing-protocol.md) for details.
+A listed model is not a guarantee of compatibility. Devices that report battery levels but lack supported sound controls may show batteries only. TVs, cameras, consoles, speakers and devices that connect only through USB or Bluetooth Low Energy are not supported.
 
-## Install and open the app
+## Install Sound Control
 
-Download **SoundControl.zip** from the [latest release](https://github.com/timothyosm/sound-control/releases/latest). Quit any running copy, unzip the download, move **Sound Control.app** to Applications and open it. The download supports Apple silicon and Intel Macs with macOS 13 or later.
+Install the app from the public GitHub release:
 
-To build from source, you also need Apple’s Command Line Tools. Run `xcode-select --install` if the tools are not installed.
+1. Open the [Sound Control download and release notes](https://github.com/timothyosm/sound-control/releases/latest).
+2. Download **SoundControl.zip** from **Assets**.
+3. Quit any running copy of Sound Control.
+4. Open the downloaded ZIP file to extract the app.
+5. Move **Sound Control.app** to your **Applications** folder and open it.
+6. Pair and connect your headphones in macOS Bluetooth settings.
+7. Allow Bluetooth access when macOS asks.
 
-From the repository folder, run:
+The app appears in the menu bar and has no Dock icon. Choose **Open at login** if you want it to start when you log in.
 
-```sh
-./scripts/test.sh
-./scripts/build.sh
-ditto --noextattr "build/Sound Control.app" "/Applications/Sound Control.app"
-open "/Applications/Sound Control.app"
-```
+Apple has not notarised the app, and it is not signed with an Apple Developer ID. macOS may ask you to approve the first launch in **System Settings > Privacy & Security**. Signed update records verify later downloads; they do not replace Apple notarisation.
 
-Pair and connect your headphones in macOS Bluetooth settings. Allow Bluetooth access if macOS asks. The app appears in the menu bar and has no Dock icon.
+## Change headphone settings
 
-Choose **Open at login** in the app’s menu to start it when you log in. macOS manages this registration.
+Open Sound Control from the menu bar. Choose **Headphones** to select a device, or let the app choose connected headphones automatically.
 
-The app uses an ad hoc signature. It is not signed with an Apple Developer ID or notarised. macOS may ask you to allow the first download in **System Settings > Privacy & Security**.
+Choose **Noise cancelling**, **Ambient sound**, **Transparency** or **Off**, where available. Open **More settings** for additional controls. The app reads settings back from your headphones to confirm changes.
 
-## Automatic updates
+### Sony settings
 
-Sound Control checks for new versions daily while it is running. Choose **Updates > Check for updates** to check at any time. Choose **Update and restart** when an update is available. You can turn off scheduled checks with **Check automatically**.
+Supported Sony devices can offer:
 
-Versions before 0.6.0 need one manual installation to gain the updater. Future downloads are verified against a signed release record before installation. Read the [update and release guide](docs/updates.md) for details.
+- equaliser presets, Clear Bass and 5 frequency bands
+- Speak-to-Chat and automatic pause when you remove the headphones
+- automatic power off and voice guidance
+- multipoint, which connects the headphones to 2 devices
+- touch control assignments, sound enhancement and a connection preference.
 
-## Saved settings
+These setting types were discovered on LinkBuds S. The [extra control implementation and test results](docs/extra-controls.md) distinguish changed settings from checks that wrote the existing value. Sony devices using the older communication format retain their noise and battery controls but do not gain these extra settings.
 
-The app stores preferences in a local SQLite database:
+Choosing an ambient level turns on ambient sound. **Focus on voices** is available when the headphones report support for it.
+
+### Nothing and CMF settings
+
+Supported devices can offer:
+
+- noise cancelling strength and personalised noise cancelling
+- equaliser presets and a switch for the existing advanced equaliser profile
+- automatic pause and low-lag mode
+- dual connection and bass enhancement.
+
+Choosing a noise cancelling strength turns on noise cancelling. The advanced equaliser switch does not edit the profile’s frequency bands. Read the [Nothing and CMF support notes](docs/nothing-protocol.md) for model and firmware limitations.
+
+## Keep the app up to date
+
+Sound Control checks for updates daily while it is running. Choose **Updates > Check for updates** to check immediately. When an update is available, choose **Update and restart** to install it and keep your saved settings.
+
+Turn off **Updates > Check automatically** to stop scheduled checks. Versions before 0.6.0 need one manual installation to gain the updater.
+
+The app verifies downloads before installation. It keeps the previous copy available to restore if replacement or the relaunch command fails. Read the [update checks, installation and recovery guide](docs/updates.md) for details.
+
+## Fix connection problems
+
+If your headphones do not appear, reconnect them in macOS Bluetooth settings. If a connection times out, close other headphone control apps and choose **Reconnect** in Sound Control.
+
+Choose **Refresh** to read the settings again. Missing battery readings appear as **Unknown**. The charging case reading may be out of date while the case is disconnected.
+
+You can [report a Sound Control problem](https://github.com/timothyosm/sound-control/issues). Include your headphone model, firmware version, macOS version and the steps that caused the problem. Reports are public, so remove personal information from any logs you attach.
+
+## Privacy and saved settings
+
+Sound Control does not require an account or collect analytics. Update checks contact GitHub, which receives normal connection information, including your device’s internet protocol address.
+
+The app stores your preferences in SQLite, a local database included with macOS. Saved records include your headphone selection, update preference, last successful update check and test recovery data. The database is at:
 
 ```text
 ~/Library/Application Support/Sound Control/settings.sqlite3
 ```
 
-The database stores your headphone selection, update preference, last successful update check, completed data migrations and any pending restoration from an optional device test. The app moves your existing selection from macOS preferences on its first successful launch after this update.
+Battery readings and live headphone settings stay in memory and are read again from the device. macOS manages Bluetooth pairing, permissions and login startup. Diagnostic logs are created only when you supply the optional `--log` argument.
 
-Migration runs in a transaction. The app removes the old preference only after the transaction succeeds. If the database cannot open, the app shows an error and stops. If a selection cannot be saved, the app keeps the previous selection and shows an error.
+## Build and test the app
 
-Live battery readings and sound settings stay in memory and are read again from your headphones. macOS manages Bluetooth pairing, permissions and login registration. The app does not copy these system settings into its database.
+You need Git and Apple’s Command Line Tools to build from source. Run `xcode-select --install` if the tools are not installed.
 
-There are no accounts or analytics. The app uses the SQLite library included with macOS. Diagnostic files are written only when you pass the optional `--log` argument.
-
-## Sound controls
-
-The app checks each Sony device’s supported features before requesting settings. Choose a device under **Headphones**, or let the app choose connected headphones automatically.
-
-Commands run one at a time. After a sound change, the app reads the setting back to check that it applied. Acknowledgement of a command alone does not confirm success.
-
-Choosing an ambient level turns on ambient sound. **Focus on voices** is available only when the device reports support for it. The available levels come from the device.
-
-Unknown battery readings appear as **Unknown**. The charging case reading may be out of date while the case is disconnected.
-
-If a connection times out, close other headphone control apps and choose **Reconnect**. If the device does not appear, reconnect it through macOS Bluetooth settings.
-
-## More settings
-
-The main menu keeps noise controls and battery readings close at hand. **More settings** contains additional controls that the connected device reports.
-
-For Sony MDR V2 devices, these can include:
-
-- equaliser presets, Clear Bass and five frequency bands
-- Speak-to-Chat, automatic pause and automatic power off
-- multipoint, touch assignments and voice guidance
-- DSEE and the Bluetooth connection preference.
-
-All these setting types were discovered on LinkBuds S with firmware 4.3.1. Other Sony models may expose different options. Older MDR V1 devices keep their existing noise and battery controls; this update does not add their extra setting formats.
-
-For Nothing and CMF devices, the app can expose:
-
-- equaliser presets and the advanced equaliser switch
-- noise cancelling strength and personalised noise cancelling
-- automatic pause and low-lag mode
-- dual connection and bass enhancement.
-
-Nothing and CMF support remains experimental, with simulated tests only. Read the [extra control notes](docs/extra-controls.md) for the exact scope and verification limits.
-
-## Tests
-
-Run `./scripts/test.sh` to check message handling, simulated device support and SQLite storage. Storage tests cover migration, reopening the database, failed writes, locked databases and damaged files.
-
-The optional device test works with Sony headphones only. **It briefly changes your sound settings**, checks the available controls and restores the original settings. Quit the running app before starting it:
+Clone the repository, then run the tests and build:
 
 ```sh
-open "build/Sound Control.app" --args --hardware-test --log /tmp/sound-control-hardware.log
+git clone https://github.com/timothyosm/sound-control.git
+cd sound-control
+./scripts/test.sh
+./scripts/build.sh
+./scripts/test-update-installation.sh
 ```
 
-The log records each check and the restoration result. If Bluetooth disconnects during testing, restoration may fail. Reconnect and restore your preferred mode from the menu.
+The app is created at `build/Sound Control.app`. The [build and device testing guide](docs/testing.md) explains installation, optional hardware tests and their limits. Device tests temporarily change headphone settings.
 
-The LinkBuds S test passed for noise cancelling, off, ambient sound at level 10, voice focus and restoration of the original settings. These checks confirm the settings reported by the device. They do not measure sound quality or noise reduction.
+The app does not update headphone firmware or provide location-based controls. Login startup and sleep and wake behaviour need longer-term testing.
 
-You can also run the extra control test:
+## Licence and credits
 
-```sh
-open "build/Sound Control.app" --args --extra-hardware-test --log /tmp/sound-control-extra-test.log
-```
+Sound Control is available under the [MIT licence](LICENSE). It is an independent project and is not affiliated with Sony, Nothing or CMF.
 
-This test temporarily changes DSEE, Speak-to-Chat, automatic pause and voice guidance, then restores each setting. It writes the current value for equaliser presets, power, connection and touch controls. It does not alter custom equaliser bands.
+The Sony implementation draws on [SonyBridge](https://github.com/AmitRajput-Dev/SonyBridge) and [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient). Their notices are retained in [third-party licences](THIRD_PARTY_LICENSES). The protocol guides identify the sources used for additional controls.
 
-The test saves a restoration record in SQLite before each write. If it stops before confirming restoration, connect the same headphones and rerun the test. A normal launch does not apply pending test settings.
+The header is an illustration generated with artificial intelligence, not an app screenshot. Its [image source and generation prompt](docs/images/README.md) are recorded with the artwork.
 
-## Limits
-
-The app does not provide firmware updates, location-based controls or controls for other product types. Login startup and sleep and wake behaviour need longer-term testing.
-
-Sony sound formats include V1 noise cancelling (`01`), combined noise cancelling and ambient sound (`02`), and ambient sound (`03`). V2 formats include noise cancelling (`01`), combined controls (`13`, `14`, `16`, `17`, `18`, `19`), and ambient sound (`21`, `22`). Format `19` preserves the device’s noise adaptation fields. Other formats remain unsupported. Wind reduction and adaptive modes are not separate menu controls.
-
-## Writing style
-
-App wording and documentation follow the [Australian Government Style Manual](https://www.stylemanual.gov.au). The [project style sheet](docs/style.md) records the conventions for future changes.
-
-## Protocol references and licences
-
-This independent Swift implementation draws on [SonyBridge](https://github.com/AmitRajput-Dev/SonyBridge) at commit `8c81a2775a76097f4938fbc835411bd59088014c` and [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient) at commit `8f4808cb635f5a176df0b7b5aea959818be5129e`.
-
-Their MIT notices remain in `THIRD_PARTY_LICENSES`. Sound Control is unofficial and is not affiliated with Sony, Nothing or CMF.
+Project wording uses the [Australian Government Style Manual](https://www.stylemanual.gov.au/). The [project style sheet](docs/style.md) records the writing conventions.
