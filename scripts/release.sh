@@ -22,5 +22,6 @@ if [[ "$KEY" != "$EXPECTED" ]]; then echo 'The release key does not match the ap
 mkdir -p build/release
 ditto -c -k --keepParent --noextattr 'build/Sound Control.app' build/release/SoundControl.zip
 build/ReleaseSigner build/release/SoundControl.zip "$VERSION" "$BUILD" "$MINIMUM" build/release/update.json
+if [[ -n "$(git status --porcelain)" || "$(git rev-parse HEAD)" != "$RELEASE_COMMIT" ]]; then echo 'Source changed during the build. Stop and start the release again.' >&2; exit 1; fi
 gh release create "$TAG" build/release/SoundControl.zip build/release/update.json --repo timothyosm/sound-control --target "$RELEASE_COMMIT" --title "Sound Control $VERSION" --notes-file "$NOTES" --draft
 gh release edit "$TAG" --repo timothyosm/sound-control --draft=false --latest
