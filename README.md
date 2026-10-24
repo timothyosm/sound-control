@@ -1,4 +1,4 @@
-# LinkBudsBar
+# Sound Control
 
 A tiny native macOS menu bar app for compatible Sony, Nothing, and CMF headphones and earbuds. Originally built for LinkBuds S, now with capability-based Sony MDR V1/V2 support and experimental Nothing/CMF support.
 
@@ -42,10 +42,10 @@ Requires macOS 13 or newer and Apple's Command Line Tools (`xcode-select --insta
 ```sh
 ./scripts/test.sh
 ./scripts/build.sh
-open build/LinkBudsBar.app
+open "build/Sound Control.app"
 ```
 
-Copy `build/LinkBudsBar.app` to Applications for a permanent installation. Pair and connect your **Sony, Nothing, or CMF headphones** in macOS Bluetooth Settings first. Allow Bluetooth access if macOS asks. The app runs only in the menu bar; it has no Dock icon. Open at Login is opt-in from its menu.
+Copy `build/Sound Control.app` to Applications for a permanent installation. Pair and connect your **Sony, Nothing, or CMF headphones** in macOS Bluetooth Settings first. Allow Bluetooth access if macOS asks. The app runs only in the menu bar; it has no Dock icon. Open at Login is opt-in from its menu.
 
 The build uses the local Mac's architecture and ad-hoc signing. It is not Developer ID signed or notarized; building locally is recommended for other Macs.
 
@@ -66,7 +66,7 @@ If control times out, close Sony Sound Connect on your phone and other Sony cont
 An optional **Sony-only** hardware check **changes your sound settings briefly**, tests advertised modes, ambient level and voice focus, then restores the settings read at the start. Quit any running copy before invoking it:
 
 ```sh
-open build/LinkBudsBar.app --args --hardware-test --log /tmp/linkbuds-hardware.log
+open "build/Sound Control.app" --args --hardware-test --log /tmp/sound-control-hardware.log
 ```
 
 The log reports each read-back result and restoration. If Bluetooth disconnects during the check, restoration cannot be guaranteed; restore the desired mode from the menu after reconnecting. Normal launches do not write logs.

@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let login = add("Open at Login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        add("Quit LinkBudsBar", #selector(quit)).keyEquivalent = "q"
+        add("Quit Sound Control", #selector(quit)).keyEquivalent = "q"
     }
     @objc func selectDevice(_ sender: NSMenuItem) { headphones.select(sender.representedObject as? String) }
     @objc func noop() {}
