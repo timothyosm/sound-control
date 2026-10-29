@@ -74,6 +74,8 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     private var timeout: Timer?
     private var reconnectTimer: Timer?
     private var opening = false
+    private var connectionAttempt: BluetoothConnectionAttempt?
+    private var pendingConnectionAttempts: [BluetoothConnectionAttempt] = []
     private var wanted: SoundState?
     var logURL: URL?
 
@@ -109,21 +111,50 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
     func select(_ address: String?) throws {
         try settings.set(address, forKey: "selectedDevice")
         selectedAddress = address
-        retry()
+        fail("Reconnecting…")
+        connect(allowBluetoothConnection: address != nil)
     }
-    func connect() {
+    func connect(allowBluetoothConnection: Bool = false) {
         guard channel == nil, !opening else { return }
         scan()
         let candidate = selectedAddress.flatMap { address in devices.first { $0.address == address } }
         guard let selected = selectedAddress != nil ? candidate : devices.first(where: { $0.connected }) else {
-            status = "Connect Sony, Nothing or CMF headphones in Bluetooth settings"; return
+            status = "Choose paired headphones or connect them in Bluetooth settings"; return
         }
         deviceName = selected.name; activeAddress = selected.address
         switch selected.backend {
         case .sony(let version): isNothing = false; generation = version
         case .nothing: isNothing = true
         }
-        guard selected.connected else { status = "Connect \(deviceName) in Bluetooth settings"; return }
+        guard selected.connected else {
+            guard allowBluetoothConnection else { status = "Choose \(deviceName) under Headphones to connect"; return }
+            opening = true; status = "Connecting to \(deviceName)…"
+            let attempt = BluetoothConnectionAttempt { [weak self] attempt, device, result in
+                guard let self else { return }
+                self.pendingConnectionAttempts.removeAll { $0 === attempt }
+                guard self.connectionAttempt === attempt else { return }
+                self.connectionAttempt = nil; self.timeout?.invalidate(); self.timeout = nil; self.opening = false
+                guard result == kIOReturnSuccess || device.isConnected() else {
+                    self.fail("Could not connect to \(device.name ?? "headphones"). Check that they are nearby and turned on."); return
+                }
+                self.connect()
+            }
+            connectionAttempt = attempt
+            pendingConnectionAttempts.append(attempt)
+            let result = selected.device.openConnection(attempt)
+            if result != kIOReturnSuccess {
+                pendingConnectionAttempts.removeAll { $0 === attempt }
+                connectionAttempt = nil; opening = false
+                if selected.device.isConnected() { connect() }
+                else { fail("Could not connect to \(deviceName). Check that they are nearby and turned on.") }
+            } else if connectionAttempt === attempt {
+                timeout = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self, weak attempt] _ in
+                    guard let self, let attempt, self.connectionAttempt === attempt else { return }
+                    self.fail("Connection timed out. Check that your headphones are nearby and turned on.")
+                }
+            }
+            return
+        }
         var id: BluetoothRFCOMMChannelID = 0
         guard selected.service.getRFCOMMChannelID(&id) == kIOReturnSuccess else { status = "Headphone controls are unavailable. Try reconnecting."; return }
         opening = true; status = "Connecting to \(deviceName)…"
@@ -350,16 +381,22 @@ final class Headphones: NSObject, IOBluetoothRFCOMMChannelDelegate {
         if status != session.status { status = session.status }
         changed?()
     }
-    func retry() { fail("Reconnecting…"); connect() }
+    func retry() { fail("Reconnecting…"); connect(allowBluetoothConnection: selectedAddress != nil) }
     private func fail(_ message: String) {
         nothingTimer?.invalidate(); nothingTimer = nil; nothingSession = nil; nothingDecoder = NothingDecoder(); lastNothingView = nil
         timeout?.invalidate(); timeout = nil
         channel?.setDelegate(nil); channel?.close(); channel = nil
-        opening = false; ready = false; state = nil; wanted = nil
+        connectionAttempt = nil; opening = false; ready = false; state = nil; wanted = nil
         left = nil; right = nil; caseBattery = nil; battery = nil
         capabilities = nil; control = nil; sonyExtras = SonyExtras(); supportsSecondTable = false; disabledReads = []; lastInboundSequence = nil; response = nil; activeAddress = nil
         let completion = current?.completion
         current = nil; queue = []; decoder = SonyDecoder()
         status = message; completion?(nil)
     }
+}
+
+private final class BluetoothConnectionAttempt: NSObject {
+    private let completion: (BluetoothConnectionAttempt, IOBluetoothDevice, IOReturn) -> Void
+    init(completion: @escaping (BluetoothConnectionAttempt, IOBluetoothDevice, IOReturn) -> Void) { self.completion = completion }
+    @objc func connectionComplete(_ device: IOBluetoothDevice, status: IOReturn) { completion(self, device, status) }
 }

@@ -49,6 +49,7 @@ import ServiceManagement
     }
     func rebuild() {
         menu.removeAllItems(); menu.autoenablesItems = false
+        add(headphones.status)
         if let battery = headphones.battery { add("Battery: \(battery)%") }
         if headphones.left != nil || headphones.right != nil {
             func value(_ n: Int?) -> String { n.map { "\($0)%" } ?? "Unknown" }

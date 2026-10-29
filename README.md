@@ -31,7 +31,7 @@ Install the app from the public GitHub release:
 3. Quit any running copy of Sound Control.
 4. Open the downloaded ZIP file to extract the app.
 5. Move **Sound Control.app** to your **Applications** folder and open it.
-6. Pair and connect your headphones in macOS Bluetooth settings.
+6. Pair your headphones in macOS Bluetooth settings.
 7. Allow Bluetooth access when macOS asks.
 
 The app appears in the menu bar and has no Dock icon. Choose **Open at login** if you want it to start when you log in.
@@ -40,7 +40,7 @@ Apple has not notarised the app, and it is not signed with an Apple Developer ID
 
 ## Change headphone settings
 
-Open Sound Control from the menu bar. Choose **Headphones** to select a device, or let the app choose connected headphones automatically.
+Open Sound Control from the menu bar. Choose **Headphones** to select a paired device and request a Bluetooth connection, or let the app choose connected headphones automatically. Audio connection and routing depend on macOS and the headphones.
 
 Choose **Noise cancelling**, **Ambient sound**, **Transparency** or **Off**, where available. Open **More settings** for additional controls. The app reads settings back from your headphones to confirm changes.
 
@@ -79,7 +79,7 @@ The app verifies downloads before installation. It keeps the previous copy avail
 
 ## Fix connection problems
 
-If your headphones do not appear, reconnect them in macOS Bluetooth settings. If a connection times out, close other headphone control apps and choose **Reconnect** in Sound Control.
+If your headphones do not appear, pair them in macOS Bluetooth settings. If a connection times out, check they are nearby and turned on, close other headphone control apps and choose **Reconnect** in Sound Control. If audio does not connect, use macOS Bluetooth settings.
 
 Choose **Refresh** to read the settings again. Missing battery readings appear as **Unknown**. The charging case reading may be out of date while the case is disconnected.
 
